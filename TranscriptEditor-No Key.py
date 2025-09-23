@@ -2,7 +2,7 @@ import re
 import tkinter as tk
 from tkinter import filedialog, messagebox
 import os
-import openai
+from openai import OpenAI
 import json
 from tkinter import ttk
 
@@ -35,7 +35,12 @@ class ToolTip:
             self.tooltip.destroy()
             self.tooltip = None
 
-def generate_summary(text, summary_type="short"):
+def generate_summary(text, summary_type="short", api_key=None):
+    if not api_key:
+        raise ValueError("API key is required")
+
+    client = OpenAI(api_key=api_key)
+
     prompt = "Summarize the following transcript."
     if summary_type == "detailed":
         prompt = "Provide a detailed five-paragraph summary of the following transcript."
@@ -45,7 +50,7 @@ def generate_summary(text, summary_type="short"):
     # Flip the max tokens for detailed and standard summaries
     max_tokens = 10000 if summary_type == "detailed" else 16384
 
-    response = openai.ChatCompletion.create(
+    response = client.chat.completions.create(
         model="gpt-4o-mini",
         messages=[
             {"role": "system", "content": prompt},
@@ -53,7 +58,7 @@ def generate_summary(text, summary_type="short"):
         ],
         max_tokens=max_tokens
     )
-    summary = response.choices[0].message['content'].strip()
+    summary = response.choices[0].message.content.strip()
     return summary
 
 def process_transcript(file_path):
@@ -87,8 +92,9 @@ def process_transcript(file_path):
     transcript = re.sub(r"\n{2,}", "\n", transcript)
 
     # Step 7: Generate summaries using ChatGPT API
-    short_summary = generate_summary(transcript, summary_type="short")
-    detailed_summary = generate_summary(transcript, summary_type="detailed")
+    api_key = api_key_entry.get().strip()
+    short_summary = generate_summary(transcript, summary_type="short", api_key=api_key)
+    detailed_summary = generate_summary(transcript, summary_type="detailed", api_key=api_key)
     
     # Step 8: Wikimedia Page Preparation with summaries
     transcript = (f"=TLDR=\n\n{short_summary}\n\n"
@@ -129,7 +135,10 @@ def process_transcripts():
 
     # Open each processed file in the default text editor
     for file in processed_files:
-        os.startfile(file)
+        if os.name == 'nt':  # Windows
+            os.startfile(file)
+        elif os.name == 'posix':  # macOS and Linux
+            os.system(f'open "{file}"')
 
 def add_host():
     new_host = host_entry.get().strip()
@@ -152,10 +161,11 @@ def update_remove_host_dropdown():
         remove_host_menu['menu'].add_command(label=host, command=tk._setit(remove_host_var, host))
 
 def set_api_key(api_key):
-    openai.api_key = api_key
-    display_key = api_key[:5] + '*' * (len(api_key) - 5)
-    api_key_status_label.config(text=f"API Key Set: {display_key}", fg="green")
-    window.update_idletasks()
+    # Validate API key by attempting to use it
+    if api_key:
+        display_key = api_key[:5] + '*' * (len(api_key) - 5)
+        api_key_status_label.config(text=f"API Key Set: {display_key}", fg="green")
+        window.update_idletasks()
 
 def add_find_replace():
     find_replace_frame = tk.Frame(find_replace_container)
