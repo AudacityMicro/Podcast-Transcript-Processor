@@ -148,12 +148,23 @@ class ToolTip:
         self.widget.bind("<Leave>", self.hide_tooltip)
 
     def show_tooltip(self, event=None):
-        x = self.widget.winfo_rootx() + self.widget.winfo_width() + 10
-        y = self.widget.winfo_rooty() + 10
+        x = self.widget.winfo_rootx() + self.widget.winfo_width() // 2
+        y = self.widget.winfo_rooty() + self.widget.winfo_height() + 5
         self.tooltip = tk.Toplevel(self.widget)
         self.tooltip.wm_overrideredirect(True)
         self.tooltip.geometry(f"+{x}+{y}")
-        label = tk.Label(self.tooltip, text=self.text, background="#ffffe0", relief="solid", borderwidth=1, padx=5, pady=3)
+        # Modern tooltip styling
+        frame = tk.Frame(self.tooltip, bg="#1d1d1f", padx=1, pady=1)
+        frame.pack()
+        label = tk.Label(
+            frame,
+            text=self.text,
+            background="#1d1d1f",
+            foreground="#ffffff",
+            font=("Segoe UI", 9),
+            padx=8,
+            pady=5
+        )
         label.pack()
 
     def hide_tooltip(self, event=None):
@@ -320,12 +331,12 @@ def process_transcript(file_path):
 def select_files():
     file_paths = filedialog.askopenfilenames(filetypes=[("Text Files", "*.txt")])
     if file_paths:
-        file_label.config(text=f"{len(file_paths)} files loaded")
+        file_label.config(text=f"{len(file_paths)} file(s) loaded", foreground="#34c759")
         start_button.config(state=tk.NORMAL)
         start_button.file_paths = file_paths
 
 def process_transcripts():
-    status_label.config(text="Processing... Please wait.", fg="red")
+    status_label.config(text="Processing... Please wait.", foreground="#ff3b30")
     start_button.config(state=tk.DISABLED)  # Disable the start button
     window.update_idletasks()
 
@@ -334,7 +345,7 @@ def process_transcripts():
         processed_file = process_transcript(file_path)
         processed_files.append(processed_file)
 
-    status_label.config(text="Processing complete. Files saved.", fg="green")
+    status_label.config(text="Processing complete. Files saved.", foreground="#34c759")
     window.update_idletasks()
 
     messagebox.showinfo("Success", f"Processed transcripts saved. Files: {', '.join(processed_files)}")
@@ -348,48 +359,76 @@ def process_transcripts():
             os.system(f'open "{file}"')
 
 def add_host():
+    """Add a new host and refresh the display."""
     new_host = host_entry.get().strip()
     if new_host and new_host not in hosts:
         hosts.append(new_host)
-        host_list_label.config(text="Hosts: " + ", ".join(hosts))
-        update_remove_host_dropdown()
         host_entry.delete(0, tk.END)
+        refresh_hosts_display()
 
-def remove_host():
-    selected_host = remove_host_var.get()
-    if selected_host in hosts:
-        hosts.remove(selected_host)
-        host_list_label.config(text="Hosts: " + ", ".join(hosts))
-        update_remove_host_dropdown()
+def remove_host_by_name(host_name):
+    """Remove a specific host and refresh the display."""
+    if host_name in hosts:
+        hosts.remove(host_name)
+        refresh_hosts_display()
 
-def update_remove_host_dropdown():
-    remove_host_menu['menu'].delete(0, 'end')
-    for host in hosts:
-        remove_host_menu['menu'].add_command(label=host, command=tk._setit(remove_host_var, host))
+def refresh_hosts_display():
+    """Refresh the visual host list."""
+    # Clear existing host items
+    for widget in hosts_list_frame.winfo_children():
+        widget.destroy()
+
+    if not hosts:
+        no_hosts_label = ttk.Label(hosts_list_frame, text="No hosts added yet", foreground="gray")
+        no_hosts_label.pack(anchor="w", pady=2)
+    else:
+        for host in hosts:
+            host_row = ttk.Frame(hosts_list_frame)
+            host_row.pack(fill="x", pady=2)
+
+            # Host name label
+            host_label = ttk.Label(host_row, text=host, font=("Segoe UI", 10))
+            host_label.pack(side="left", padx=(0, 10))
+
+            # Remove button (styled as a small X)
+            remove_btn = tk.Button(
+                host_row,
+                text="×",
+                command=lambda h=host: remove_host_by_name(h),
+                font=("Segoe UI", 12, "bold"),
+                fg="#ff3b30",
+                bg="#f5f5f7",
+                activebackground="#e8e8ed",
+                activeforeground="#ff3b30",
+                relief="flat",
+                borderwidth=0,
+                cursor="hand2",
+                padx=6,
+                pady=0
+            )
+            remove_btn.pack(side="left")
 
 def set_api_key(api_key):
     # Validate API key by attempting to use it
     if api_key:
         display_key = api_key[:5] + '*' * (len(api_key) - 5)
-        api_key_status_label.config(text=f"API Key Set: {display_key}", fg="green")
+        api_key_status_label.config(text=f"API Key Set: {display_key}", foreground="#34c759")
         window.update_idletasks()
 
 def add_find_replace():
-    find_replace_frame = tk.Frame(find_replace_container)
-    find_replace_frame.grid(sticky="ew", padx=5, pady=5)
+    find_replace_frame = ttk.Frame(find_replace_container)
+    find_replace_frame.grid(sticky="ew", padx=0, pady=3)
 
-    find_label = tk.Label(find_replace_frame, text="Find:")
-    find_label.grid(row=0, column=0, sticky="w", padx=5)
-    find_entry = tk.Entry(find_replace_frame)
-    find_entry.grid(row=0, column=1, sticky="ew", padx=5)
+    ttk.Label(find_replace_frame, text="Find:").grid(row=0, column=0, sticky="w", padx=(0, 5))
+    find_entry = ttk.Entry(find_replace_frame)
+    find_entry.grid(row=0, column=1, sticky="ew", padx=(0, 15))
 
-    replace_label = tk.Label(find_replace_frame, text="Replace with:")
-    replace_label.grid(row=0, column=2, sticky="w", padx=5)
-    replace_entry = tk.Entry(find_replace_frame)
-    replace_entry.grid(row=0, column=3, sticky="ew", padx=5)
+    ttk.Label(find_replace_frame, text="Replace:").grid(row=0, column=2, sticky="w", padx=(0, 5))
+    replace_entry = ttk.Entry(find_replace_frame)
+    replace_entry.grid(row=0, column=3, sticky="ew", padx=(0, 10))
 
-    remove_button = tk.Button(find_replace_frame, text="Remove", command=lambda: remove_find_replace(find_replace_frame))
-    remove_button.grid(row=0, column=4, sticky="e", padx=5)
+    remove_button = ttk.Button(find_replace_frame, text="Remove", command=lambda: remove_find_replace(find_replace_frame))
+    remove_button.grid(row=0, column=4, sticky="e")
 
     find_replace_frame.grid_columnconfigure(1, weight=1)
     find_replace_frame.grid_columnconfigure(3, weight=1)
@@ -412,8 +451,9 @@ def load_settings():
             # Load hosts
             global hosts
             hosts = settings.get("hosts", hosts)
-            host_list_label.config(text="Hosts: " + ", ".join(hosts))
-            update_remove_host_dropdown()
+            # Refresh the hosts display if the frame exists
+            if 'hosts_list_frame' in globals():
+                refresh_hosts_display()
 
             # Load API key
             api_key = settings.get("api_key", "")
@@ -453,13 +493,90 @@ def clear_window():
     for widget in window.winfo_children():
         widget.destroy()
 
+def create_styled_button(parent, text, command, style="primary"):
+    """Create a styled button with modern appearance."""
+    colors = {
+        'primary': {'bg': '#0071e3', 'fg': 'white', 'hover': '#0077ed', 'disabled_bg': '#99c9f2', 'disabled_fg': '#ffffff'},
+        'secondary': {'bg': '#e8e8ed', 'fg': '#1d1d1f', 'hover': '#d1d1d6', 'disabled_bg': '#f0f0f0', 'disabled_fg': '#a0a0a0'},
+    }
+    c = colors.get(style, colors['primary'])
+
+    btn = tk.Button(
+        parent,
+        text=text,
+        command=command,
+        font=("Segoe UI", 12),
+        bg=c['bg'],
+        fg=c['fg'],
+        activebackground=c['hover'],
+        activeforeground=c['fg'],
+        disabledforeground=c['disabled_fg'],
+        relief='flat',
+        borderwidth=0,
+        padx=20,
+        pady=12,
+        cursor='hand2'
+    )
+
+    # Store colors for hover effects
+    btn._style_colors = c
+
+    # Hover effects
+    def on_enter(e):
+        if btn['state'] != 'disabled':
+            btn.configure(bg=c['hover'])
+    def on_leave(e):
+        if btn['state'] != 'disabled':
+            btn.configure(bg=c['bg'])
+
+    btn.bind('<Enter>', on_enter)
+    btn.bind('<Leave>', on_leave)
+
+    return btn
+
+
+def create_action_button(parent, text, command, state=tk.NORMAL):
+    """Create a large styled action button (for primary page actions)."""
+    btn = tk.Button(
+        parent,
+        text=text,
+        command=command,
+        state=state,
+        font=("Segoe UI", 14, "bold"),
+        bg='#0071e3',
+        fg='white',
+        activebackground='#0077ed',
+        activeforeground='white',
+        disabledforeground='#ffffff',
+        relief='flat',
+        borderwidth=0,
+        padx=30,
+        pady=15,
+        cursor='hand2'
+    )
+
+    # Hover effects
+    def on_enter(e):
+        if btn['state'] != 'disabled':
+            btn.configure(bg='#0077ed')
+    def on_leave(e):
+        if btn['state'] != 'disabled':
+            btn.configure(bg='#0071e3')
+
+    btn.bind('<Enter>', on_enter)
+    btn.bind('<Leave>', on_leave)
+
+    return btn
+
+
 def show_main_menu():
     """Display the main menu screen."""
     clear_window()
 
     window.title("Transcript Tools")
 
-    menu_frame = tk.Frame(window)
+    # Use ttk.Frame for proper theming
+    menu_frame = ttk.Frame(window)
     menu_frame.grid(sticky="nsew", padx=40, pady=40)
 
     window.grid_rowconfigure(0, weight=1)
@@ -468,47 +585,41 @@ def show_main_menu():
     menu_frame.grid_columnconfigure(0, weight=1)
 
     # Title
-    title_label = tk.Label(menu_frame, text="Transcript Tools", font=("Arial", 24, "bold"))
+    title_label = ttk.Label(menu_frame, text="Transcript Tools", font=("Segoe UI", 28, "bold"))
     title_label.grid(row=0, column=0, pady=(0, 30))
 
     # Buttons frame
-    buttons_frame = tk.Frame(menu_frame)
+    buttons_frame = ttk.Frame(menu_frame)
     buttons_frame.grid(row=1, column=0)
 
     # Post-process Podcast Transcript button
-    transcript_btn = tk.Button(
+    transcript_btn = create_styled_button(
         buttons_frame,
         text="Post-process Podcast Transcript",
         command=create_transcript_processor_gui,
-        font=("Arial", 14),
-        width=30,
-        height=2
+        style="primary"
     )
-    transcript_btn.grid(row=0, column=0, pady=10)
+    transcript_btn.grid(row=0, column=0, pady=8, sticky="ew")
     ToolTip(transcript_btn, "Process transcript files: remove timecodes, format hosts, generate summaries.")
 
     # Transcribe Audio button
-    transcribe_btn = tk.Button(
+    transcribe_btn = create_styled_button(
         buttons_frame,
         text="Transcribe Audio (Whisper)",
         command=create_transcription_gui,
-        font=("Arial", 14),
-        width=30,
-        height=2
+        style="secondary"
     )
-    transcribe_btn.grid(row=1, column=0, pady=10)
+    transcribe_btn.grid(row=1, column=0, pady=8, sticky="ew")
     ToolTip(transcribe_btn, "Transcribe audio files using OpenAI Whisper. Requires FFmpeg.")
 
     # Generate Minutes button
-    minutes_btn = tk.Button(
+    minutes_btn = create_styled_button(
         buttons_frame,
         text="Generate Minutes from Transcript",
         command=create_minutes_generator_gui,
-        font=("Arial", 14),
-        width=30,
-        height=2
+        style="secondary"
     )
-    minutes_btn.grid(row=2, column=0, pady=10)
+    minutes_btn.grid(row=2, column=0, pady=8, sticky="ew")
     ToolTip(minutes_btn, "Generate meeting minutes from a transcript using ChatGPT.")
 
 
@@ -800,16 +911,13 @@ Format the output in clean markdown. Be concise but comprehensive."""
     progress.pack(fill="x", pady=(0, 10))
 
     # Generate button
-    generate_btn = tk.Button(
+    generate_btn = create_action_button(
         main_frame,
         text="Generate Minutes",
         command=generate_minutes,
-        state=tk.DISABLED,
-        font=("Arial", 16),
-        height=2,
-        width=20
+        state=tk.DISABLED
     )
-    generate_btn.pack(pady=10)
+    generate_btn.pack(pady=15)
 
 
 def show_whisper_setup_screen():
@@ -919,22 +1027,21 @@ def show_whisper_setup_screen():
         thread.start()
 
     # Install button
-    install_btn = tk.Button(
+    install_btn = create_action_button(
         main_frame,
         text="Install Whisper Dependencies",
         command=run_installation,
-        font=("Arial", 14),
-        height=2,
-        width=25,
         state=tk.NORMAL if ffmpeg_ok else tk.DISABLED
     )
-    install_btn.pack(pady=10)
+    install_btn.pack(pady=15)
 
     if not ffmpeg_ok:
         warning_label = tk.Label(
             main_frame,
             text="Please install FFmpeg first before installing Whisper.",
-            fg="red"
+            fg="#ff3b30",
+            bg="#f5f5f7",
+            font=("Segoe UI", 10)
         )
         warning_label.pack()
 
@@ -1212,16 +1319,13 @@ def create_transcription_gui():
     status_label.pack(pady=(5, 0))
 
     # Start Transcription button at bottom
-    transcribe_btn = tk.Button(
+    transcribe_btn = create_action_button(
         main_frame,
         text="Start Transcription",
         command=start_transcription,
-        state=tk.DISABLED,
-        font=("Arial", 16),
-        height=2,
-        width=20
+        state=tk.DISABLED
     )
-    transcribe_btn.pack(pady=20)
+    transcribe_btn.pack(pady=15)
 
     # Start processing queue
     process_queue()
@@ -1238,133 +1342,229 @@ def create_transcript_processor_gui():
     window.grid_rowconfigure(0, weight=1)
     window.grid_columnconfigure(0, weight=1)
 
-    content_frame = tk.Frame(window)
-    content_frame.grid(sticky="nsew", padx=10, pady=10)
+    content_frame = ttk.Frame(window, padding="15")
+    content_frame.grid(sticky="nsew")
 
     content_frame.grid_columnconfigure(0, weight=1)
 
     find_replace_entries = []
 
-    # Back button
-    back_button = tk.Button(content_frame, text="< Back to Menu", command=show_main_menu)
-    back_button.grid(row=0, column=0, sticky="w", pady=(0, 10))
+    # Header with back button and save/load on right
+    header_frame = ttk.Frame(content_frame)
+    header_frame.grid(row=0, column=0, sticky="ew", pady=(0, 15))
+
+    back_button = ttk.Button(header_frame, text="< Back to Menu", command=show_main_menu)
+    back_button.pack(side="left")
+
+    load_json_button = ttk.Button(header_frame, text="Load Config", command=reload_settings)
+    load_json_button.pack(side="right", padx=(5, 0))
+
+    save_settings_button = ttk.Button(header_frame, text="Save Config", command=save_settings)
+    save_settings_button.pack(side="right")
 
     # Group: File Selection
-    file_frame = tk.LabelFrame(content_frame, text="File Selection", padx=10, pady=10)
-    file_frame.grid(row=1, column=0, sticky="ew")
+    file_frame = ttk.LabelFrame(content_frame, text="File Selection", padding="15")
+    file_frame.grid(row=1, column=0, sticky="ew", pady=(0, 10))
 
     file_frame.grid_columnconfigure(0, weight=1)
 
-    label = tk.Label(file_frame, text="Select text files to process:")
-    label.grid(row=0, column=0, sticky="w")
+    ttk.Label(file_frame, text="Select text files to process:").grid(row=0, column=0, sticky="w")
 
-    select_button = tk.Button(file_frame, text="Select Files", command=select_files)
-    select_button.grid(row=1, column=0, pady=5)
+    file_row = ttk.Frame(file_frame)
+    file_row.grid(row=1, column=0, sticky="ew", pady=(8, 0))
+
+    select_button = ttk.Button(file_row, text="Select Files", command=select_files)
+    select_button.pack(side="left")
 
     global file_label
-    file_label = tk.Label(file_frame, text="No files loaded")
-    file_label.grid(row=2, column=0, sticky="w")
+    file_label = ttk.Label(file_row, text="No files loaded", foreground="gray")
+    file_label.pack(side="left", padx=(15, 0))
 
     ToolTip(file_frame, "Use this section to load the transcript files you want to process in bulk.")
 
     # Group: API Key
-    api_key_frame = tk.LabelFrame(content_frame, text="API Key", padx=10, pady=10)
-    api_key_frame.grid(row=2, column=0, sticky="ew")
+    api_key_frame = ttk.LabelFrame(content_frame, text="API Key", padding="15")
+    api_key_frame.grid(row=2, column=0, sticky="ew", pady=(0, 10))
 
-    api_key_frame.grid_columnconfigure(0, weight=1)
+    api_key_frame.grid_columnconfigure(1, weight=1)
 
-    api_key_label = tk.Label(api_key_frame, text="Enter your OpenAI API Key:")
-    api_key_label.grid(row=0, column=0, sticky="w")
+    ttk.Label(api_key_frame, text="OpenAI API Key:").grid(row=0, column=0, sticky="w", padx=(0, 10))
 
     global api_key_entry
-    api_key_entry = tk.Entry(api_key_frame, show="*")
-    api_key_entry.grid(row=1, column=0, sticky="ew", pady=5)
+    api_key_entry = ttk.Entry(api_key_frame, show="*")
+    api_key_entry.grid(row=0, column=1, sticky="ew", padx=(0, 10))
 
-    set_api_key_button = tk.Button(api_key_frame, text="Set API Key", command=lambda: set_api_key(api_key_entry.get().strip()))
-    set_api_key_button.grid(row=2, column=0, pady=5)
+    set_api_key_button = ttk.Button(api_key_frame, text="Set Key", command=lambda: set_api_key(api_key_entry.get().strip()))
+    set_api_key_button.grid(row=0, column=2)
 
-    api_key_status_label = tk.Label(api_key_frame, text="")
-    api_key_status_label.grid(row=3, column=0, sticky="w")
+    api_key_status_label = ttk.Label(api_key_frame, text="", foreground="green")
+    api_key_status_label.grid(row=1, column=0, columnspan=3, sticky="w", pady=(5, 0))
 
     ToolTip(api_key_frame, "Enter and set your OpenAI API key to enable processing with the GPT-4o-mini model.")
 
     # Group: Hosts
-    host_frame = tk.LabelFrame(content_frame, text="Hosts", padx=10, pady=10)
-    host_frame.grid(row=3, column=0, sticky="ew")
+    host_frame = ttk.LabelFrame(content_frame, text="Hosts (speakers in the transcript)", padding="15")
+    host_frame.grid(row=3, column=0, sticky="ew", pady=(0, 10))
 
     host_frame.grid_columnconfigure(0, weight=1)
 
-    host_list_label = tk.Label(host_frame, text="Hosts: " + ", ".join(hosts))
-    host_list_label.grid(row=0, column=0, sticky="w")
-
-    host_entry_frame = tk.Frame(host_frame)
-    host_entry_frame.grid(row=1, column=0, sticky="ew", pady=5)
+    # Add host row
+    add_host_frame = ttk.Frame(host_frame)
+    add_host_frame.grid(row=0, column=0, sticky="ew", pady=(0, 10))
+    add_host_frame.grid_columnconfigure(0, weight=1)
 
     global host_entry
-    host_entry = tk.Entry(host_entry_frame)
-    host_entry.grid(row=0, column=0, sticky="ew")
+    host_entry = ttk.Entry(add_host_frame)
+    host_entry.grid(row=0, column=0, sticky="ew", padx=(0, 10))
+    host_entry.bind('<Return>', lambda e: add_host())  # Allow Enter key to add
 
-    host_entry_frame.grid_columnconfigure(0, weight=1)
+    add_host_button = ttk.Button(add_host_frame, text="+ Add Host", command=add_host)
+    add_host_button.grid(row=0, column=1)
 
-    add_host_button = tk.Button(host_entry_frame, text="Add Host", command=add_host)
-    add_host_button.grid(row=0, column=1, padx=5)
+    # Host list container (scrollable if many hosts)
+    global hosts_list_frame
+    hosts_list_frame = ttk.Frame(host_frame)
+    hosts_list_frame.grid(row=1, column=0, sticky="ew")
 
-    remove_host_frame = tk.Frame(host_frame)
-    remove_host_frame.grid(row=2, column=0, sticky="ew", pady=5)
+    # Initial display
+    refresh_hosts_display()
 
-    remove_host_frame.grid_columnconfigure(0, weight=1)
-
-    remove_host_var = tk.StringVar(host_frame)
-    remove_host_var.set(hosts[0] if hosts else '')  # Set the first host as default or empty if no hosts
-    remove_host_menu = tk.OptionMenu(remove_host_frame, remove_host_var, *(hosts if hosts else [""]))
-    remove_host_menu.grid(row=0, column=0, sticky="ew")
-
-    remove_host_button = tk.Button(remove_host_frame, text="Remove Host", command=remove_host)
-    remove_host_button.grid(row=0, column=1, padx=5)
-
-    ToolTip(host_frame, "Manage the list of hosts in the transcript, adding or removing as needed.")
+    ToolTip(host_frame, "Add the names of hosts/speakers as they appear in your transcript.")
 
     # Group: Find/Replace
-    find_replace_container = tk.LabelFrame(content_frame, text="Find and Replace", padx=10, pady=10)
-    find_replace_container.grid(row=4, column=0, sticky="ew")
+    find_replace_container = ttk.LabelFrame(content_frame, text="Find and Replace", padding="15")
+    find_replace_container.grid(row=4, column=0, sticky="ew", pady=(0, 10))
 
     find_replace_container.grid_columnconfigure(0, weight=1)
 
-    add_find_replace_button = tk.Button(find_replace_container, text="Add Find/Replace", command=add_find_replace)
-    add_find_replace_button.grid(row=0, column=0, pady=5)
+    add_find_replace_button = ttk.Button(find_replace_container, text="+ Add Find/Replace Rule", command=add_find_replace)
+    add_find_replace_button.grid(row=0, column=0, sticky="w", pady=(0, 5))
 
     ToolTip(find_replace_container, "Add find/replace pairs to process specific words or phrases in the transcript.")
 
-    # Group: Actions
-    actions_frame = tk.Frame(content_frame, padx=10, pady=10)
-    actions_frame.grid(row=5, column=0, sticky="ew")
-
-    actions_frame.grid_columnconfigure(0, weight=1)
-
-    save_settings_button = tk.Button(actions_frame, text="Save Settings", command=save_settings)
-    save_settings_button.grid(row=0, column=0, padx=5, sticky="w")
-
-    load_json_button = tk.Button(actions_frame, text="Load from JSON", command=reload_settings)
-    load_json_button.grid(row=0, column=1, padx=5, sticky="w")
+    # Status section
+    status_frame = ttk.Frame(content_frame)
+    status_frame.grid(row=5, column=0, sticky="ew", pady=(0, 5))
 
     global status_label
-    status_label = tk.Label(actions_frame, text="")
-    status_label.grid(row=1, column=0, padx=5, sticky="w", columnspan=2)
+    status_label = ttk.Label(status_frame, text="")
+    status_label.pack(anchor="center")
 
+    # Start button
     global start_button
-    start_button = tk.Button(content_frame, text="Start", command=process_transcripts, state=tk.DISABLED, font=("Arial", 16), height=2, width=20)
-    start_button.grid(row=6, column=0, pady=20)
-
-    ToolTip(actions_frame, "Save your settings or reload them from a JSON file. Start processing when ready.")
+    start_button = create_action_button(content_frame, text="Start Processing", command=process_transcripts, state=tk.DISABLED)
+    start_button.grid(row=6, column=0, pady=15)
 
     # Load settings after defining necessary widgets
     load_settings()
+
+def apply_modern_style():
+    """Apply a modern style to the application."""
+    style = ttk.Style()
+
+    # Use 'clam' theme as base - it's the most customizable
+    style.theme_use('clam')
+
+    # Color palette
+    colors = {
+        'bg': '#f5f5f7',           # Light gray background
+        'fg': '#1d1d1f',           # Dark text
+        'accent': '#0071e3',       # Blue accent (Apple-like)
+        'accent_hover': '#0077ed',
+        'button_bg': '#e8e8ed',
+        'button_hover': '#d1d1d6',
+        'entry_bg': '#ffffff',
+        'border': '#c7c7cc',
+        'success': '#34c759',
+        'error': '#ff3b30',
+    }
+
+    # Configure the main window background
+    window.configure(bg=colors['bg'])
+
+    # Frame styling
+    style.configure('TFrame', background=colors['bg'])
+    style.configure('TLabelframe', background=colors['bg'], bordercolor=colors['border'])
+    style.configure('TLabelframe.Label', background=colors['bg'], foreground=colors['fg'],
+                    font=('Segoe UI', 10, 'bold'))
+
+    # Label styling
+    style.configure('TLabel', background=colors['bg'], foreground=colors['fg'],
+                    font=('Segoe UI', 10))
+
+    # Button styling
+    style.configure('TButton',
+                    background=colors['button_bg'],
+                    foreground=colors['fg'],
+                    borderwidth=0,
+                    focuscolor='none',
+                    font=('Segoe UI', 10),
+                    padding=(12, 6))
+    style.map('TButton',
+              background=[('active', colors['button_hover']), ('pressed', colors['border'])],
+              relief=[('pressed', 'flat'), ('!pressed', 'flat')])
+
+    # Accent button style (for primary actions)
+    style.configure('Accent.TButton',
+                    background=colors['accent'],
+                    foreground='white',
+                    borderwidth=0,
+                    focuscolor='none',
+                    font=('Segoe UI', 10, 'bold'),
+                    padding=(12, 6))
+    style.map('Accent.TButton',
+              background=[('active', colors['accent_hover']), ('pressed', colors['accent'])],
+              foreground=[('active', 'white'), ('pressed', 'white')])
+
+    # Entry styling
+    style.configure('TEntry',
+                    fieldbackground=colors['entry_bg'],
+                    foreground=colors['fg'],
+                    borderwidth=1,
+                    relief='solid',
+                    padding=8,
+                    font=('Segoe UI', 10))
+
+    # Combobox styling
+    style.configure('TCombobox',
+                    fieldbackground=colors['entry_bg'],
+                    background=colors['button_bg'],
+                    foreground=colors['fg'],
+                    arrowcolor=colors['fg'],
+                    borderwidth=1,
+                    relief='solid',
+                    padding=6,
+                    font=('Segoe UI', 10))
+    style.map('TCombobox',
+              fieldbackground=[('readonly', colors['entry_bg'])],
+              background=[('active', colors['button_hover'])])
+
+    # Progressbar styling
+    style.configure('TProgressbar',
+                    background=colors['accent'],
+                    troughcolor=colors['button_bg'],
+                    borderwidth=0,
+                    thickness=6)
+
+    # Scrollbar styling
+    style.configure('TScrollbar',
+                    background=colors['button_bg'],
+                    troughcolor=colors['bg'],
+                    borderwidth=0,
+                    arrowsize=14)
+    style.map('TScrollbar',
+              background=[('active', colors['border'])])
+
 
 def create_main_window():
     """Create the main application window and show the menu."""
     global window
     window = tk.Tk()
     window.minsize(400, 300)  # Set minimum window size
+
+    # Apply modern styling
+    apply_modern_style()
+
     show_main_menu()
     window.mainloop()
 
